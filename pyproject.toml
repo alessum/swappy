@@ -23,9 +23,5 @@ notebooks = [
   "nbformat>=5.10",
 ]
 
-[project.scripts]
-swappy-reproduce = "swappy.cli:main"
-
 [tool.setuptools.packages.find]
 where = ["src"]
-

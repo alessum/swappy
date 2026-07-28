@@ -36,7 +36,7 @@ make smoke
 make quick
 
 # Published dynamical settings; expect an HPC-scale run
-MPLCONFIGDIR=.cache/matplotlib .venv/bin/swappy-reproduce --profile paper
+make paper
 
 # Execute and save both pedagogical notebooks
 make notebooks
@@ -72,10 +72,10 @@ not a numerical substitute for those production sweeps. Its purpose is to:
 3. validate conservation laws and gate conventions;
 4. give readers and LLMs a compact path from the gate to the paper’s claims.
 
-The old top-level scripts are retained as legacy provenance. They are not the
-supported reproduction interface because they depend on absent lookup/output
-trees, contain cluster-specific assumptions, and mix older coupling
-conventions.
+The original exploratory and cluster scripts remain available in Git history.
+They are not part of the supported interface because they depend on absent
+lookup/output trees, contain machine-specific assumptions, and mix older
+coupling conventions.
 
 ## Source audit
 
@@ -92,7 +92,7 @@ used during the project:
   `b7733f8e48883d7abe139798b404c818905ed277` for the archived static tables and
   later analysis scripts.
 
-The common `exact_diagonalization.py` in all three fetched repositories has the
-same SHA-256 digest. The supported `src/swappy/` layer keeps the physics
+The historical `exact_diagonalization.py` in all three fetched repositories
+had the same SHA-256 digest. The supported `src/swappy/` layer keeps the physics
 conventions that survived into the published paper while removing missing
 lookup trees and cluster-path assumptions.

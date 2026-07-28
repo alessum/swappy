@@ -22,8 +22,8 @@ def load_published_static_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     value used in the final paper.
     """
 
-    entanglement = pd.read_csv(DATA_ROOT / "eigvec_entanglement_data" / "fifth.csv")
-    gap_ratio = pd.read_csv(DATA_ROOT / "gap_ratio_data" / "first.csv")
+    entanglement = pd.read_csv(DATA_ROOT / "entanglement.csv")
+    gap_ratio = pd.read_csv(DATA_ROOT / "gap_ratio.csv")
 
     entanglement = entanglement.copy()
     gap_ratio = gap_ratio.copy()
