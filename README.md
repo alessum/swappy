@@ -12,38 +12,59 @@ Notebooks and reproduction code accompanying:
 > *npj Quantum Information* **12**, 32 (2026).
 > [doi:10.1038/s41534-025-01178-8](https://doi.org/10.1038/s41534-025-01178-8)
 
-**TL;DR.** We study transport in a disordered, U(1)-symmetric Floquet quantum circuit. Between its localized and ergodic regions, and close to a generalized-SWAP line, we find a genuinely discrete-time **swappy regime**: local excitations move coherently and ballistically despite strong disorder before eventually thermalizing. Its lifetime grows approximately as
-$(\pi-J)^{-2}$. We introduce a complex **circular moment** that separates directed motion from spreading using only local Z-basis measurements. This repository provides a short route from the two-qubit gate to the central figures and transport diagnostics.
+**TL;DR.** We construct a strongly disordered, U(1)-symmetric Floquet
+circuit from physically interpretable XXZ-like two-qubit gates. Its central feature is a genuinely discrete-time **swappy regime** near the generalized-SWAP line: an imperfect SWAP transfers most of a local
+magnetization excitation to the neighboring qubit while leaving a small remnant behind. We study it by time evolting a one site excitation. The resulting packet moves fast, almost ballistically (close to the SWAP point) and at the same time locally diffuses quickly. The overall result is that it spreads faster than in the ordinary ergodic regime. This phenomenon has no direct continuous-time XXZ counterpart. To follow the packet across periodic boundaries, we introduce a complex **circular moment** whose phase measures directed motion and whose magnitude measures spreading using only local Z-basis expectation values.
 
 **Keywords:** quantum transport · Floquet circuits · U(1) symmetry · disorder · statistics · localization · digital quantum simulation.
 
+## 🏖️ The picture in one glance
+
+![The umbrella analogy for localized, ergodic, swappy, and near-SWAP dynamics.](docs/assets/swappy-umbrella.gif)
+
+Think of inserting a beach umbrella into highly disordered sand. To get it stuck into the sand pressing on the ground is not enough. For the pole to find a path through the disordered sand particles, it's more effective to add to the downward pressure a twirling around the umbrella vertical axis, a precession motion. However, if the angle of this precession is too big, twirling the umbrella becomes easier but the pole does not penetrate the beach.
+
+In the animation this mapping loosely follows the qualitative geometry of the highlighted trajectories in the circular-moment plot below. The circuit dynamics are discrete: the right-hand plot displays the successive samples $R_n$. The umbrella dynamics are continuous: its angle and height interpolate between $\arg R_n$, $|R_n|$ and the next circuit sample. The localized path wanders only slightly near its initial point, the ergodic path contracts almost radially, the swappy path spirals clockwise while contracting, and near SWAP the path follows a 20-point orbit close to the unit circle. The common blue-to-red gradient encodes the circuit time index only; it does not encode regime, speed, spreading, or interaction strength.
+
+The downward push is absent in the localized and near-SWAP cases, medium in the ergodic case, and slightly stronger in the swappy case. The maximum deepening is rescaled to one third of the umbrella's initial height; equivalently, the lowest canopy height remains two thirds of its initial value. The vertical projection is independent of phase, so rotation cannot introduce artificial up-and-down oscillations. The buried triangular tip is rigidly attached to the shaft and precesses with it. Strictly, inward contraction of $R$ measures spreading; that spreading is diffusive when $\sigma(t)\sim t^{1/2}$.
+
 ## 🎯 Main points
 
-1. **🧭 One model connects several transport regimes.**
+1. **🧭 A physically interpretable model is still a digital one.**
 
-   A generic disordered U(1)-symmetric circuit can be tuned between localized-like, ergodic, swappy, and near-SWAP behavior. The static entanglement and level statistics identify localization,ergodicity, and integrable lines, but do not by themselves reveal the swappy regime.
+   Every U(1)-symmetric gate has an XXZ-type exchange interaction $J$, an Ising interaction $J_z$, and independent random phases. The disorder stays order-one in the process of varying $J$ and $J_z$, thus small values of couplings do not quietly make the model a weak Trotter step for the continuous time. The same model can therefore be used to study the phenomena of localized-like, ergodic, swappy, and generalized-SWAP transport.
    [Walkthrough](notebooks/01_from_gate_to_swappy.ipynb)
 
-2. **🌀 Strong disorder does not prevent transient ballistic motion.**
+2. **🎯 Periodic evolution needs circular statistics.**
 
-   Near the generalized-SWAP line, a local magnetization packet propagates coherently through the circuit before decohering. This produces faster transport than in the ordinary ergodic regime and is visible in individual trajectories as a moving, long-lived peak.
-   [Dynamical reproduction](notebooks/01_from_gate_to_swappy.ipynb)
-
-3. **⏳ The swappy regime is prethermal and Floquet-specific.**
-
-   The thermalization time grows approximately as $t_{\mathrm{th}}\sim(\pi-J)^{-2}$ near the SWAP point. The regime is dynamical, stable over the investigated parameters and system sizes, and disappears in the continuous-time limit. It therefore has no direct
-   counterpart in the ordinary continuous-time disordered XXZ chain.
-   [Reproducibility map](docs/REPRODUCIBILITY.md)
-
-4. **🎯 A circular moment separates drift from spreading.**
-
-   The magnetization profile is mapped to a quasi-probability distribution and compressed into one complex number $R(t)$. Its phase tracks directed motion around the periodic chain, while its magnitude tracks spreading.
-   Localized, diffusive, swappy, and near-SWAP dynamics become immediately distinguishable as trajectories in the complex plane.
+   On a ring, the sites $N-1$ and $0$ are neighboring each other. However, an ordinary linear mean or variance would misinterpret a narrow packet that crosses this junction as being distributed on the entire lattice. Transformation of the magnetization distribution to quasi-probability $p_n(t)$ and further to $R(t)=\sum_n p_n(t)\exp 2\pi i n/N$ makes it possible to eliminate the effect of the boundary: the phase angle of $R$ follows drift on the ring, while contraction of $|R|$ follows spreading. The diagnosis requires only local Z-basis measurements.
    [Analysis walkthrough](notebooks/02_circular_moment_and_reproduction.ipynb)
 
-5. **🔬 The diagnostic is experimentally accessible.**
+3. **🌀 The key observation is super-ergodic diffusion.**
 
-   The circular moment uses only local Z-basis expectation values rather than full state tomography. This gives digital quantum simulators a direct way to probe transport, drift, and prethermal dynamics.
+   Close to the generalized-SWAP line, each gate transfers most of the magnetization to the adjacent spin but retains a small portion. Thus, a coherent peak propagates ballistically, gradually leaving some of the excitation behind leading to a diffusion that is globally faster than ergodic one even in the presence of disorder. Entanglement and level statistics do not provide any information about the transient **swappy regime**: the moving coherent peak is present only in the dynamical properties.
+   [Dynamical reproduction](notebooks/01_from_gate_to_swappy.ipynb)
+
+4. **⏳ Swappy transport is prethermal and purely discrete-time.**
+
+   The phenomenon utilizes the finite duration of near-$\pi$ exchange pulse: the almost-SWAP gate is responsible for the transport and split of local magnetization.
+   It vanishes in the usual continuous-time limit and does not have any analog in the disordered continuous-time XXZ chain. Thermalization time increases proportionally to $t_{\mathrm{th}}\sim(\pi-J)^{-2}$ when approaching SWAP point.
+   [Reproducibility map](docs/REPRODUCIBILITY.md)
+
+5. **🔬 Generalized SWAPs defeat disorder but are sensitive to detuning.**
+
+   At the generalized-SWAP line, random phases do not stop ballistic transfer: the excitation keeps circulating without thermalizing. A small detuning from perfect SWAP makes every hand-off slightly incomplete, so remnants accumulate and ultimately destroy the coherent peak. The investigated swappy window is therefore long-lived and robust over finite parameter and system-size ranges, but not an asymptotically stable phase.
+
+## 🌀 How to read the circular moment
+
+![Circular-moment trajectories in the localized, ergodic, swappy, and near-SWAP regimes.](docs/assets/circular-moment-regimes.png)
+
+*Clockwise from the upper left: localized (●), ergodic (▶), near-SWAP (★), and swappy (■).*
+
+Rotation of $R(t)$ tracks coherent drift of the excitation, while contraction
+toward the centre tracks its spreading. The ergodic trajectory therefore moves
+almost radially inward, the swappy trajectory spirals inward, and the near-SWAP
+trajectory remains close to the outer rim.
 
 ## 📓 The notebooks
 
