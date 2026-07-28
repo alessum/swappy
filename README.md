@@ -20,7 +20,7 @@ magnetization excitation to the neighboring qubit while leaving a small remnant 
 
 ## 🏖️ The picture in one glance
 
-![The umbrella analogy for localized, ergodic, swappy, and near-SWAP dynamics.](docs/assets/swappy-umbrella.gif)
+![The umbrella analogy for localized, ergodic, swappy, and near-SWAP dynamics.](docs/assets/figure1.gif)
 
 Think of inserting a beach umbrella into highly disordered sand. To get it stuck into the sand pressing on the ground is not enough. For the pole to find a path through the disordered sand particles, it's more effective to add to the downward pressure a twirling around the umbrella vertical axis, a precession motion. However, if the angle of this precession is too big, twirling the umbrella becomes easier but the pole does not penetrate the beach.
 

@@ -24,12 +24,12 @@ CIRCUIT_STEP_COUNT = 20
 UMBRELLA_SHAFT_LENGTH = 145.0
 UMBRELLA_TIP_LENGTH = 13.0
 SAND_SURFACE_Y = 334
-INITIAL_TIP_Y = 330
+INITIAL_TIP_Y = 340
 INITIAL_TIP_CLEARANCE = SAND_SURFACE_Y - INITIAL_TIP_Y
 MAX_UMBRELLA_DROP_FRACTION = 1.0 / 3.0
 
 ROOT = Path(__file__).resolve().parent
-OUTPUT = ROOT / "assets" / "swappy-umbrella.gif"
+OUTPUT = ROOT / "assets" / "figure1.gif"
 
 FONT_REGULAR_CANDIDATES = (
     "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -50,10 +50,12 @@ PAPER = "#FBFAF6"
 SKY = "#EAF5F6"
 SAND = "#E8CF91"
 SAND_DARK = "#B88B45"
-CORAL = "#E76F51"
+# BLUE and CORAL match the paper's canonical darkblue/darkred (preamble.tex)
+# and are the endpoints of the R(t) time-colour ramp in figure04.
+CORAL = "#822522"
 GOLD = "#F2B84B"
 TEAL = "#2A9D8F"
-BLUE = "#4067C9"
+BLUE = "#485DB5"
 PURPLE = "#7656A7"
 PALE_BLUE = "#DCE8F7"
 
@@ -105,6 +107,12 @@ REGIMES = (
         "tilt_deg": 8.0,
         "moment_samples": LOCALIZED_MOMENT_SAMPLES,
         "downward_push": 0.0,
+        "descent_gamma": 1.0,
+        "descent_boost": 1.0,
+        # Small persistent flutter reflecting the tiny phase fluctuations of
+        # R(t) that live on top of an otherwise frozen |R|.
+        "wobble_rot_amp": 0.10,
+        "wobble_tilt_amp": 0.7,
         "color": MUTED,
     },
     {
@@ -113,6 +121,10 @@ REGIMES = (
         "tilt_deg": 8.0,
         "moment_samples": ERGODIC_MOMENT_SAMPLES,
         "downward_push": 0.55,
+        "descent_gamma": 1.0,
+        "descent_boost": 1.0,
+        "wobble_rot_amp": 0.33,
+        "wobble_tilt_amp": 1.9,
         "color": BLUE,
     },
     {
@@ -121,6 +133,13 @@ REGIMES = (
         "tilt_deg": 20.0,
         "moment_samples": SWAPPY_MOMENT_SAMPLES,
         "downward_push": 0.65,
+        # Front-loaded descent: swappy plunges into the sand well before
+        # ergodic reaches half-drop. Boost > 1 makes the final resting depth
+        # visibly deeper than the ergodic one.
+        "descent_gamma": 0.55,
+        "descent_boost": 1.20,
+        "wobble_rot_amp": 0.0,
+        "wobble_tilt_amp": 0.0,
         "color": CORAL,
     },
     {
@@ -129,6 +148,10 @@ REGIMES = (
         "tilt_deg": 32.0,
         "moment_samples": NEAR_SWAP_MOMENT_SAMPLES,
         "downward_push": 0.0,
+        "descent_gamma": 1.0,
+        "descent_boost": 1.0,
+        "wobble_rot_amp": 0.0,
+        "wobble_tilt_amp": 0.0,
         "color": TEAL,
     },
 )
@@ -639,6 +662,30 @@ def moment_state(
     return profile_state(regime, progress)
 
 
+def regime_wobble(
+    regime: dict[str, object], raw_progress: float
+) -> tuple[float, float]:
+    """Small rotation/tilt tremor mimicking the residual phase fluctuations of
+    R(t) inside a regime. Amplitude is set per regime (0 for regimes with no
+    stochastic component). Tapers off near the end so the umbrella settles
+    into its final pose."""
+
+    rot_amp = float(regime.get("wobble_rot_amp", 0.0))
+    tilt_amp = float(regime.get("wobble_tilt_amp", 0.0))
+    if rot_amp == 0.0 and tilt_amp == 0.0:
+        return 0.0, 0.0
+    envelope = max(0.0, 1.0 - raw_progress ** 3)
+    angle_wobble = envelope * rot_amp * (
+        0.67 * math.sin(2.0 * math.pi * 3.3 * raw_progress)
+        + 0.33 * math.sin(2.0 * math.pi * 6.7 * raw_progress + 1.1)
+    )
+    tilt_wobble_deg = envelope * tilt_amp * (
+        0.67 * math.sin(2.0 * math.pi * 4.1 * raw_progress + 0.7)
+        + 0.33 * math.sin(2.0 * math.pi * 9.3 * raw_progress + 2.3)
+    )
+    return angle_wobble, tilt_wobble_deg
+
+
 def umbrella_height(regime: dict[str, object], moment_radius: float) -> float:
     """Map the global deepest data point to a drop of one third of H0."""
 
@@ -662,8 +709,17 @@ def umbrella_height(regime: dict[str, object], moment_radius: float) -> float:
         min(1.0, moment_radius / initial_radius),
     )
     contraction = (1.0 - relative_radius) / (1.0 - MIN_RELATIVE_MOMENT_RADIUS)
+    # descent_gamma < 1 front-loads the drop against |R| contraction so a
+    # regime whose |R| shrinks aggressively (swappy) plunges into the sand
+    # earlier and visibly deeper than a regime with the same final |R| but a
+    # gentler trajectory (ergodic). descent_boost > 1 lets swappy settle
+    # deeper than the shared cap (up to MAX_DROP * boost of the initial
+    # height); since contraction <= 1, effective_contraction <= boost.
+    descent_gamma = float(regime.get("descent_gamma", 1.0))
+    descent_boost = float(regime.get("descent_boost", 1.0))
+    effective_contraction = (contraction ** descent_gamma) * descent_boost
     return initial_height * (
-        1.0 - MAX_UMBRELLA_DROP_FRACTION * contraction
+        1.0 - MAX_UMBRELLA_DROP_FRACTION * effective_contraction
     )
 
 
@@ -746,16 +802,34 @@ def draw_circular_moment(
         width=sc(3),
     )
 
-    draw.arc(box(833, 165, 889, 221), start=210, end=520, fill=CORAL, width=sc(3))
-    arrow_angle = math.radians(520)
+    # Sweeping quarter-arc drift indicator: thin curve from the top-left of
+    # the icon area bowing down to a bold triangular tip at the bottom-right,
+    # matching the paper's flow-arrow shape.
+    drift_cx, drift_cy = 830, 220
+    drift_radius = 55
+    drift_head_size = 13
+    draw.arc(
+        box(
+            drift_cx - drift_radius,
+            drift_cy - drift_radius,
+            drift_cx + drift_radius,
+            drift_cy + drift_radius,
+        ),
+        start=270,
+        end=360,
+        fill=CORAL,
+        width=sc(4),
+    )
+    # Tip is placed a full head-length past the arc's rightmost point so the
+    # triangle protrudes clearly below the arc's rounded end cap.
     arrow_head(
         draw,
-        (861 + 28 * math.cos(arrow_angle), 193 + 28 * math.sin(arrow_angle)),
-        arrow_angle + math.pi / 2,
+        (drift_cx + drift_radius, drift_cy + drift_head_size),
+        math.pi / 2,
         fill=CORAL,
-        size=7,
+        size=drift_head_size,
     )
-    draw.text(point(815, 226), "drift", fill=CORAL, font=font(11, bold=True))
+    draw.text(point(848, 234), "drift", fill=CORAL, font=font(11, bold=True))
 
     draw.line([point(817, 342), point(772, 318)], fill=BLUE, width=sc(3))
     arrow_head(
@@ -813,10 +887,14 @@ def render_frame(regime: dict[str, object], raw_progress: float) -> Image.Image:
         * ease(raw_progress)
         / MAX_DOWNWARD_PUSH
     )
+    tilt_deg = float(regime["tilt_deg"])
+    rotation_wobble, tilt_wobble = regime_wobble(regime, raw_progress)
+    rotation += rotation_wobble
+    tilt_deg += tilt_wobble
     draw_umbrella(
         draw,
         rotation=rotation,
-        tilt_deg=float(regime["tilt_deg"]),
+        tilt_deg=tilt_deg,
         moment_radius=radius,
         canopy_height=canopy_height,
         push=push,
