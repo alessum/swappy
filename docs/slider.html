@@ -266,9 +266,8 @@
   </p>
 </main>
 
-<script type="module">
-  import { parseGIF, decompressFrames } from 'https://esm.sh/gifuct-js@2.1.2';
-
+<script>
+(async () => {
   // Regime layout must mirror docs/make_swappy_umbrella_gif.py. Any change to
   // FRAME_COUNT or the REGIMES tuple there needs a matching update here.
   // Markers reproduce the paper's regime symbols (circle / triangle / square /
@@ -542,6 +541,13 @@
   }
 
   try {
+    // htmlpreview.github.io mishandles `type="module"`, so this file runs
+    // as a classic script wrapped in an async IIFE. gifuct-js is pulled in
+    // with a dynamic import(), which is valid classic-script syntax and
+    // works whether we are served from htmlpreview, a local http.server,
+    // or GitHub Pages.
+    const { parseGIF, decompressFrames } =
+      await import('https://esm.sh/gifuct-js@2.1.2');
     const buffer = await fetchWithProgress(GIF_URL);
     statusText.textContent = 'Decoding frames…';
     const gif = parseGIF(buffer);
@@ -573,6 +579,7 @@
       + `Underlying error: ${err.message || err}`,
     );
   }
+})();
 </script>
 </body>
 </html>
