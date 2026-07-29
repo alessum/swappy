@@ -22,8 +22,8 @@ magnetization excitation to the neighboring qubit while leaving a small remnant 
 
 ![The umbrella analogy for localized, ergodic, swappy, and near-SWAP dynamics.](docs/assets/figure1.gif)
 
-> 🎛️ **Explore frame by frame**: [Open the slider](https://htmlpreview.github.io/?https://github.com/alessum/swappy/blob/main/docs/slider.html) and use <kbd>←</kbd>/<kbd>→</kbd> to step through the animation. 
-> [`GitHub Pages`](https://alessum.github.io/swappy/slider.html) · Local: run `python -m http.server` from `swappy/`, then open http://localhost:8000/docs/slider.html.
+> 🎛️ **Explore frame by frame**: [Open the slider](https://htmlpreview.github.io/?https://github.com/alessum/swappy/blob/main/docs/slider.html) and use <kbd>←</kbd>/<kbd>→</kbd> to step through the animation.
+> Local alternative: run `python -m http.server` from `swappy/`, then open http://localhost:8000/docs/slider.html.
 
 
 Planting a beach umbrella in disordered sand takes more than a downward push: a gentle twist helps the pole find a path, while excessive precession makes it spin without sinking. The animation uses this analogy to interpolate the discrete circuit samples $R_n$, mapping $\arg R_n$ to the umbrella’s orientation and $|R_n|$ to its height. Localized motion barely wanders, ergodic motion contracts almost radially, swappy motion spirals inward, and near-SWAP motion traces a 20-point orbit near the unit circle. The blue-to-red gradient marks time only, while inward contraction measures spreading—diffusive when $\sigma(t)\sim t^{1/2}$.
