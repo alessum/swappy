@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Umbrella animation — frame slider</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1e1e24;
+    --muted: #6f6f78;
+    --accent: #485DB5;
+    --track: #e3e3ea;
+    --panel: #ffffff;
+    --border: #e3e3ea;
+    /* Paper palette + markers sampled directly from the GIF footer pill
+       (docs/assets/figure1.gif). Any change here should match the pill fill
+       drawn by draw_footer in docs/make_swappy_umbrella_gif.py. NEAR SWAP is
+       intentionally redder than SWAPPY: it is the "hottest" regime pill. */
+    --localized: #64748B;
+    --ergodic:   #485DB5;
+    --swappy:    #822522;
+    --near-swap: #B22222;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Latin Modern Roman", "CMU Serif", "Georgia", "Times New Roman", serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  main {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 24px 20px 48px;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  header p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  header a { color: var(--accent); }
+  .stage {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(250, 250, 247, 0.94);
+    font-size: 14px;
+    color: var(--muted);
+    text-align: center;
+    padding: 20px;
+  }
+  .status[hidden] { display: none; }
+  .status .progress {
+    width: min(280px, 60%);
+    height: 6px;
+    background: var(--track);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .status .progress > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 120ms linear;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  button.play {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 120ms;
+  }
+  button.play:hover:not(:disabled) { background: #eeeef4; }
+  button.play:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Four consecutive regime bars act as one continuous scrubber. Each bar
+     fills from 0 to 100 % over its 90 frames. The whole strip is a single
+     pointer capture surface so a drag started on one bar keeps tracking the
+     cursor even when it crosses into another bar. */
+  .bars {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    min-width: 0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .bar {
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    color: var(--localized);
+    font: inherit;
+  }
+  .bar[data-regime="LOCALIZED"] { color: var(--localized); }
+  .bar[data-regime="ERGODIC"]   { color: var(--ergodic); }
+  .bar[data-regime="SWAPPY"]    { color: var(--swappy); }
+  .bar[data-regime="NEAR SWAP"] { color: var(--near-swap); }
+  .bar-track {
+    position: relative;
+    height: 14px;
+    background: var(--track);
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+  }
+  .bar-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0%;
+    background: currentColor;
+    border-radius: 7px 0 0 7px;
+  }
+  .bar[data-complete="true"] .bar-fill { border-radius: 7px; }
+  .bar-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--muted);
+    transition: color 120ms;
+  }
+  .bar-marker {
+    display: inline-block;
+    margin-right: 2px;
+    font-size: 10px;
+    line-height: 1;
+    vertical-align: 0.05em;
+  }
+  .bar[data-active="true"] .bar-label,
+  .bar[data-complete="true"] .bar-label { color: currentColor; }
+  .bar:focus-visible .bar-track {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .hint {
+    margin-top: 18px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .hint code {
+    background: #f0f0f6;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .error {
+    color: #b02a2a;
+    font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🌀 Umbrella animation — frame slider</h1>
+    <p>
+      Interactive scrubber for
+      <a href="assets/figure1.gif">figure1.gif</a>. Click any regime bar to
+      play from that point, or drag across the strip to scrub across all four.
+    </p>
+  </header>
+
+  <div class="stage">
+    <canvas id="stage" width="960" height="540" aria-label="Umbrella animation frame"></canvas>
+    <div class="status" id="status">
+      <div id="status-text">Loading animation…</div>
+      <div class="progress"><span id="status-bar"></span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="play" id="playPause" aria-label="Play or pause" disabled>▶</button>
+    <div class="bars" id="bars" role="group" aria-label="Regime scrubber"></div>
+  </div>
+
+  <p class="hint">
+    Rendered on-device from the same GIF used in the README. Blue-to-red inside
+    each regime encodes the circuit time index only. Click any regime bar to
+    play from that point, or drag across the strip to scrub. Keyboard:
+    <code>←</code>/<code>→</code> step frame-by-frame,
+    <code>Space</code> plays/pauses,
+    <kbd>Tab</kbd> then <kbd>Enter</kbd> jumps to a regime.
+    Query parameter <code>?frame=N</code> deep-links a specific frame.
+  </p>
+</main>
+
+<script type="module">
+  import { parseGIF, decompressFrames } from 'https://esm.sh/gifuct-js@2.1.2';
+
+  // Regime layout must mirror docs/make_swappy_umbrella_gif.py. Any change to
+  // FRAME_COUNT or the REGIMES tuple there needs a matching update here.
+  // Markers reproduce the paper's regime symbols (circle / triangle / square /
+  // star) as they appear in the GIF's bottom-left pill.
+  const FRAMES_PER_REGIME = 12 + 54 + 10 + 14; // OPEN + MOTION + HOLD + CLOSE
+  const REGIMES = [
+    { name: "LOCALIZED", marker: "\u25CF", description: "small phase wander" },
+    { name: "ERGODIC",   marker: "\u25B2", description: "radial contraction" },
+    { name: "SWAPPY",    marker: "\u25A0", description: "clockwise spiral" },
+    { name: "NEAR SWAP", marker: "\u2605", description: "20-point orbit" },
+  ];
+
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const playBtn = document.getElementById('playPause');
+  const statusBox = document.getElementById('status');
+  const statusText = document.getElementById('status-text');
+  const statusBar = document.getElementById('status-bar');
+  const strip = document.getElementById('bars');
+
+  // Build the four regime bars. Each bar is a real <button> for keyboard /
+  // screen-reader access; pointer scrubbing is delegated to the strip so a
+  // drag started on one bar keeps tracking the cursor across the whole strip.
+  const bars = REGIMES.map((r, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bar';
+    btn.dataset.regime = r.name;
+    btn.title = `${r.name} — ${r.description}`;
+    btn.setAttribute('aria-label', `Play from ${r.name}: ${r.description}`);
+    const track = document.createElement('div');
+    track.className = 'bar-track';
+    const fill = document.createElement('div');
+    fill.className = 'bar-fill';
+    track.appendChild(fill);
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    const marker = document.createElement('span');
+    marker.className = 'bar-marker';
+    marker.textContent = r.marker;
+    marker.setAttribute('aria-hidden', 'true');
+    label.appendChild(marker);
+    label.appendChild(document.createTextNode(' ' + r.name));
+    btn.appendChild(track);
+    btn.appendChild(label);
+    // Keyboard activation only (Enter / Space with detail === 0). Pointer
+    // interactions are consumed by the strip-level handlers and prevent the
+    // synthetic click, so this branch never runs for mouse / touch.
+    btn.addEventListener('click', (e) => {
+      if (e.detail !== 0) return;
+      seekTo(i * FRAMES_PER_REGIME);
+      play();
+    });
+    strip.appendChild(btn);
+    return { root: btn, fill };
+  });
+
+  // Resolve the GIF URL. A ?gif=... query param overrides for testing.
+  const params = new URLSearchParams(location.search);
+  const GIF_URL = params.get('gif') || 'assets/figure1.gif';
+
+  async function fetchWithProgress(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+    }
+    const total = Number(response.headers.get('Content-Length')) || 0;
+    if (!response.body || !total) {
+      const buf = await response.arrayBuffer();
+      statusBar.style.width = '100%';
+      return buf;
+    }
+    const reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      statusBar.style.width = `${Math.min(100, (received / total) * 100)}%`;
+    }
+    const buf = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buf.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return buf.buffer;
+  }
+
+  // The GIF pipeline uses disposal=2 (restore-to-background). We replay
+  // patches onto an offscreen "work" canvas, applying the previous frame's
+  // disposal before each new patch, then blit the work canvas to the display
+  // canvas. Seeking backward resets to frame 0; seeking forward plays from
+  // the current cursor. This keeps memory O(1) in the frame count.
+  let frames = [];
+  let width = 0;
+  let height = 0;
+  let workCanvas = null;
+  let workCtx = null;
+  let patchCanvas = null;
+  let patchCtx = null;
+  let currentFrame = -1;
+  let restoreData = null; // for disposalType === 3 (restore-previous)
+
+  function applyDisposal(prev) {
+    if (!prev) return;
+    if (prev.disposalType === 2) {
+      workCtx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
+    } else if (prev.disposalType === 3 && restoreData) {
+      workCtx.putImageData(restoreData, prev.dims.left, prev.dims.top);
+      restoreData = null;
+    }
+  }
+
+  function drawFrame(frame) {
+    if (frame.disposalType === 3) {
+      restoreData = workCtx.getImageData(
+        frame.dims.left, frame.dims.top, frame.dims.width, frame.dims.height,
+      );
+    }
+    patchCanvas.width = frame.dims.width;
+    patchCanvas.height = frame.dims.height;
+    const patchData = patchCtx.createImageData(frame.dims.width, frame.dims.height);
+    patchData.data.set(frame.patch);
+    patchCtx.putImageData(patchData, 0, 0);
+    workCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+  }
+
+  function updateBars(frameIdx) {
+    const activeRegime = Math.floor(frameIdx / FRAMES_PER_REGIME);
+    const localFrame = frameIdx - activeRegime * FRAMES_PER_REGIME;
+    const perRegimePct = (localFrame / (FRAMES_PER_REGIME - 1)) * 100;
+    for (let i = 0; i < bars.length; i++) {
+      let pct;
+      if (i < activeRegime) pct = 100;
+      else if (i > activeRegime) pct = 0;
+      else pct = perRegimePct;
+      bars[i].fill.style.width = pct + '%';
+      bars[i].root.dataset.active = String(i === activeRegime);
+      bars[i].root.dataset.complete = String(pct >= 100);
+    }
+  }
+
+  function seekTo(target) {
+    if (!frames.length) return;
+    target = Math.max(0, Math.min(frames.length - 1, target | 0));
+    if (target === currentFrame) return;
+    if (target < currentFrame || currentFrame < 0) {
+      workCtx.clearRect(0, 0, width, height);
+      restoreData = null;
+      for (let i = 0; i <= target; i++) {
+        if (i > 0) applyDisposal(frames[i - 1]);
+        drawFrame(frames[i]);
+      }
+    } else {
+      for (let i = currentFrame + 1; i <= target; i++) {
+        applyDisposal(frames[i - 1]);
+        drawFrame(frames[i]);
+      }
+    }
+    currentFrame = target;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(workCanvas, 0, 0);
+    updateBars(target);
+  }
+
+  let playing = false;
+  let rafId = 0;
+  let lastTs = 0;
+  let accumMs = 0;
+
+  function stop() {
+    playing = false;
+    playBtn.textContent = '▶';
+    playBtn.setAttribute('aria-label', 'Play');
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  }
+
+  function play() {
+    if (playing || !frames.length) return;
+    playing = true;
+    playBtn.textContent = '⏸';
+    playBtn.setAttribute('aria-label', 'Pause');
+    lastTs = 0;
+    accumMs = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function loop(ts) {
+    if (!playing) return;
+    if (!lastTs) lastTs = ts;
+    const dt = ts - lastTs;
+    lastTs = ts;
+    accumMs += dt;
+    // gifuct-js reports `delay` already in milliseconds (it internally
+    // multiplies the GIF centisecond value by 10).
+    let delay = frames[currentFrame]?.delay || 40;
+    while (accumMs >= delay) {
+      accumMs -= delay;
+      const next = (currentFrame + 1) % frames.length;
+      seekTo(next);
+      delay = frames[currentFrame]?.delay || 40;
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  playBtn.addEventListener('click', () => (playing ? stop() : play()));
+
+  // --- Pointer scrubbing across the whole strip ---------------------------
+  // Down: pause and jump to the pressed position.
+  // Move (while pressed): live-follow the cursor across all four bars.
+  // Up: seek to release position and start playback automatically.
+  let scrubbing = false;
+  function frameFromClientX(clientX) {
+    const rect = strip.getBoundingClientRect();
+    if (rect.width === 0 || !frames.length) return 0;
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    return Math.round((x / rect.width) * (frames.length - 1));
+  }
+  strip.addEventListener('pointerdown', (e) => {
+    if (!frames.length) return;
+    e.preventDefault(); // suppress synthetic click on the button
+    strip.setPointerCapture(e.pointerId);
+    scrubbing = true;
+    stop();
+    seekTo(frameFromClientX(e.clientX));
+  });
+  strip.addEventListener('pointermove', (e) => {
+    if (!scrubbing) return;
+    seekTo(frameFromClientX(e.clientX));
+  });
+  function endScrub(e) {
+    if (!scrubbing) return;
+    scrubbing = false;
+    try { strip.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    seekTo(frameFromClientX(e.clientX));
+    play();
+  }
+  strip.addEventListener('pointerup', endScrub);
+  strip.addEventListener('pointercancel', (e) => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    try { strip.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) {
+      return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      playing ? stop() : play();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      stop();
+      seekTo(currentFrame - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      stop();
+      seekTo(currentFrame + 1);
+    }
+  });
+
+  function showError(message) {
+    statusBox.hidden = false;
+    statusText.innerHTML = `<span class="error">${message}</span>`;
+    statusBar.style.width = '0%';
+  }
+
+  try {
+    const buffer = await fetchWithProgress(GIF_URL);
+    statusText.textContent = 'Decoding frames…';
+    const gif = parseGIF(buffer);
+    // `buildImagePatches: true` gives us pre-composited RGBA per-patch data.
+    frames = decompressFrames(gif, true);
+    if (!frames.length) throw new Error('GIF contains no frames.');
+    width = gif.lsd.width;
+    height = gif.lsd.height;
+    canvas.width = width;
+    canvas.height = height;
+    workCanvas = document.createElement('canvas');
+    workCanvas.width = width;
+    workCanvas.height = height;
+    workCtx = workCanvas.getContext('2d');
+    patchCanvas = document.createElement('canvas');
+    patchCtx = patchCanvas.getContext('2d');
+    playBtn.disabled = false;
+    statusBox.hidden = true;
+    const requested = params.has('frame') ? Number(params.get('frame')) : NaN;
+    const start = Number.isFinite(requested) ? requested : 0;
+    seekTo(start);
+  } catch (err) {
+    console.error(err);
+    showError(
+      `Could not load the GIF. If you opened this file directly from disk, `
+      + `serve the docs/ folder with a local web server (e.g. `
+      + `<code>python -m http.server</code> from the swappy/ directory) or `
+      + `open it via GitHub Pages / htmlpreview.github.io. `
+      + `Underlying error: ${err.message || err}`,
+    );
+  }
+</script>
+</body>
+</html>

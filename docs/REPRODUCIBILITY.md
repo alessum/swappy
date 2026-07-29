@@ -77,22 +77,3 @@ They are not part of the supported interface because they depend on absent
 lookup/output trees, contain machine-specific assumptions, and mix older
 coupling conventions.
 
-## Source audit
-
-The reference implementation was cross-checked against the three repositories
-used during the project:
-
-- `dooleysh/spin_profile_in_U1_symmetric_circuit` at commit
-  `67ab18a64dbdf332952f9d84ad4547910700d5fc` for the disordered U(1) gate,
-  projected typical state, and gate-resolved spin-profile evolution;
-- `dooleysh/localisation_transition_in_disordered_XXZ_brickwork` at commit
-  `09b4d154267fe0b43f227776d0c63c3ac76585fe` for fixed-magnetization exact
-  diagonalization and the historical POLFED workflow;
-- `alessum/swappy` at pre-change commit
-  `b7733f8e48883d7abe139798b404c818905ed277` for the archived static tables and
-  later analysis scripts.
-
-The historical `exact_diagonalization.py` in all three fetched repositories
-had the same SHA-256 digest. The supported `src/swappy/` layer keeps the physics
-conventions that survived into the published paper while removing missing
-lookup trees and cluster-path assumptions.
