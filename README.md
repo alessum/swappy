@@ -12,9 +12,7 @@ Notebooks and reproduction code accompanying:
 > *npj Quantum Information* **12**, 32 (2026).
 > [doi:10.1038/s41534-025-01178-8](https://doi.org/10.1038/s41534-025-01178-8)
 
-**TL;DR.** We construct a strongly disordered, U(1)-symmetric Floquet
-circuit from physically interpretable XXZ-like two-qubit gates. Its central feature is a genuinely discrete-time **swappy regime** near the generalized-SWAP line: an imperfect SWAP transfers most of a local
-magnetization excitation to the neighboring qubit while leaving a small remnant behind. We study it by time evolting a one site excitation. The resulting packet moves fast, almost ballistically (close to the SWAP point) and at the same time locally diffuses quickly. The overall result is that it spreads faster than in the ordinary ergodic regime. This phenomenon has no direct continuous-time XXZ counterpart. To follow the packet across periodic boundaries, we introduce a complex **circular moment** whose phase measures directed motion and whose magnitude measures spreading using only local Z-basis expectation values.
+**TL;DR.** We construct a strongly disordered, U(1)-symmetric Floquet circuit from physically interpretable XXZ-like two-qubit gates. Its central feature is a genuinely discrete-time **swappy regime** near the generalized-SWAP line: an imperfect SWAP transfers most of a local magnetization excitation to the neighboring qubit while leaving a small remnant behind. We study it by time evolting a one site excitation. The resulting packet moves fast, almost ballistically (close to the SWAP point) and at the same time locally diffuses quickly. The overall result is that it spreads faster than in the ordinary ergodic regime. This phenomenon has no direct continuous-time XXZ counterpart. To follow the packet across periodic boundaries, we introduce a complex **circular moment** whose phase measures directed motion and whose magnitude measures spreading using only local Z-basis expectation values.
 
 **Keywords:** quantum transport · Floquet circuits · U(1) symmetry · disorder · statistics · localization · digital quantum simulation.
 
@@ -22,7 +20,7 @@ magnetization excitation to the neighboring qubit while leaving a small remnant 
 
 ![The umbrella analogy for localized, ergodic, swappy, and near-SWAP dynamics.](docs/assets/figure1.gif)
 
-> 🎛️ **Explore frame by frame**: [Open the slider](https://htmlpreview.github.io/?https://github.com/alessum/swappy/blob/main/docs/slider.html) and use <kbd>←</kbd>/<kbd>→</kbd> to step through the animation.
+> 🎛️ **Explore frame by frame**: [Open the slider](https://cdn.jsdelivr.net/gh/alessum/swappy@main/docs/slider.html) and use <kbd>←</kbd>/<kbd>→</kbd> to step through the animation.
 > Local alternative: run `python -m http.server` from `swappy/`, then open http://localhost:8000/docs/slider.html.
 
 
