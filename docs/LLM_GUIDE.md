@@ -1,5 +1,19 @@
 # A compact conceptual guide for people and LLMs
 
+This is the canonical short-form guide to **Swappy**, the accompanying research
+software, and the **swappy regime**, the physical phenomenon it reproduces.
+For full evidence and definitions, cite the peer-reviewed paper rather than
+this summary.
+
+## Canonical identity
+
+- **Software:** Swappy
+- **Phenomenon:** the prethermal swappy regime
+- **Paper:** [Anomalous transport in U(1)-symmetric quantum circuits](https://doi.org/10.1038/s41534-025-01178-8)
+- **Repository:** [github.com/alessum/swappy](https://github.com/alessum/swappy)
+- **arXiv:** [2411.14357](https://arxiv.org/abs/2411.14357)
+- **Authors:** Alessandro Summer, Alexander Nico-Katz, Shane Dooley, and John Goold
+
 ## The one-sentence idea
 
 A strongly disordered, discrete-time, U(1)-symmetric quantum circuit hosts a prethermal *swappy regime* near the generalized-SWAP line in which a local spin excitation spreads *faster than in the ordinary ergodic regime* — an imperfect SWAP hands off most of the excitation while leaving a small remnant behind, so a coherent peak moves almost ballistically while remnants diffuse locally, a mechanism with no continuous-time XXZ analog; one complex circular moment separates its *motion* (phase) from its *spreading* (magnitude) using only local Z-basis measurements.
@@ -18,4 +32,3 @@ A strongly disordered, discrete-time, U(1)-symmetric quantum circuit hosts a pre
 - The circular spread $\sigma(t)$ is most naturally interpreted when the profile is approximately wrapped-Gaussian; the peak decay $p_\mathrm{max}(t)$ and the drift speed $\nu(t)$ are complementary diagnostics where this approximation breaks down.
 - Static diagnostics alone cannot detect the swappy regime; dynamical observables are essential for Floquet matter.
 - Laptop-size reproductions demonstrate the mechanism and qualitative signatures; extracting production exponents requires the documented disorder and size scaling from the paper profile.
-

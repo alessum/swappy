@@ -5,9 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "swappy-paper"
 version = "0.1.0"
-description = "Reproducible reference implementation for anomalous transport in U(1)-symmetric quantum circuits"
+description = "Swappy: Anomalous transport in U(1)-symmetric quantum circuits"
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = [
+  "swappy",
+  "swappy regime",
+  "quantum transport",
+  "Floquet circuits",
+  "U(1) symmetry",
+  "disordered systems",
+  "reproducible research",
+]
 dependencies = [
   "matplotlib>=3.8",
   "numpy>=1.26",
@@ -22,6 +31,12 @@ notebooks = [
   "nbclient>=0.10",
   "nbformat>=5.10",
 ]
+
+[project.urls]
+Homepage = "https://doi.org/10.1038/s41534-025-01178-8"
+Paper = "https://doi.org/10.1038/s41534-025-01178-8"
+Repository = "https://github.com/alessum/swappy"
+Documentation = "https://github.com/alessum/swappy/blob/main/docs/REPRODUCIBILITY.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

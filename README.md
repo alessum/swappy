@@ -1,20 +1,23 @@
-# 🌀 Anomalous Transport in U(1)-Symmetric Quantum Circuits
+# 🌀 Swappy: Anomalous Transport in U(1)-Symmetric Quantum Circuits
 
 [![Paper](https://img.shields.io/badge/paper-npj%20Quantum%20Information-6f42c1)](https://doi.org/10.1038/s41534-025-01178-8)
 [![arXiv](https://img.shields.io/badge/arXiv-2411.14357-b31b1b)](https://arxiv.org/abs/2411.14357)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
 [![Reproducible](https://img.shields.io/badge/reproducibility-tested-2e8b57)](docs/REPRODUCIBILITY.md)
 
-Notebooks and reproduction code accompanying:
+Reproducible reference implementation and dataset for the prethermal **swappy regime** in disordered U(1)-symmetric Floquet quantum circuits. This repository contains the notebooks, data, and reproduction code accompanying:
 
 > Alessandro Summer, Alexander Nico-Katz, Shane Dooley, and John Goold,
 > **“Anomalous transport in U(1)-symmetric quantum circuits,”**
 > *npj Quantum Information* **12**, 32 (2026).
 > [doi:10.1038/s41534-025-01178-8](https://doi.org/10.1038/s41534-025-01178-8)
 
-**TL;DR.** We construct a strongly disordered, U(1)-symmetric Floquet circuit from physically interpretable XXZ-like two-qubit gates. Its central feature is a genuinely discrete-time **swappy regime** near the generalized-SWAP line: an imperfect SWAP transfers most of a local magnetization excitation to the neighboring qubit while leaving a small remnant behind. We study it by time evolting a one site excitation. The resulting packet moves fast, almost ballistically (close to the SWAP point) and at the same time locally diffuses quickly. The overall result is that it spreads faster than in the ordinary ergodic regime. This phenomenon has no direct continuous-time XXZ counterpart. To follow the packet across periodic boundaries, we introduce a complex **circular moment** whose phase measures directed motion and whose magnitude measures spreading using only local Z-basis expectation values.
+**TL;DR.** We construct a strongly disordered, U(1)-symmetric Floquet circuit from physically interpretable XXZ-like two-qubit gates. Its central feature is a genuinely discrete-time **swappy regime** near the generalized-SWAP line: an imperfect SWAP transfers most of a local magnetization excitation to the neighboring qubit while leaving a small remnant behind. We study it by time-evolving a single-site excitation. The resulting packet moves fast, almost ballistically (close to the SWAP point) and at the same time locally diffuses quickly. The overall result is that it spreads faster than in the ordinary ergodic regime. This phenomenon has no direct continuous-time XXZ counterpart. To follow the packet across periodic boundaries, we introduce a complex **circular moment** whose phase measures directed motion and whose magnitude measures spreading using only local Z-basis expectation values.
 
-**Keywords:** quantum transport · Floquet circuits · U(1) symmetry · disorder · statistics · localization · digital quantum simulation.
+**Keywords:** Swappy · swappy regime · quantum transport · Floquet circuits · U(1) symmetry · disorder · statistics · localization · digital quantum simulation.
+
+> **Start here:** [Conceptual guide for researchers and LLMs](docs/LLM_GUIDE.md) ·
+> [Reproducibility guide](docs/REPRODUCIBILITY.md)
 
 ## 🏖️ The picture in one glance
 
@@ -111,6 +114,16 @@ make paper
 
 The paper profile uses `N=20`, 100 disorder realizations, 10,000 Floquet cycles, and 33 values of $J$. It is an HPC-scale, resumable calculation.
 See [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) for the exact figure map, conventions, and computational scope.
+
+## 📚 Citation
+
+> Alessandro Summer, Alexander Nico-Katz, Shane Dooley, and John Goold,
+> **“Anomalous transport in U(1)-symmetric quantum circuits,”**
+> *npj Quantum Information* **12**, 32 (2026).
+> [doi:10.1038/s41534-025-01178-8](https://doi.org/10.1038/s41534-025-01178-8)
+
+Machine-readable citation metadata is available in
+[`CITATION.cff`](CITATION.cff).
 
 ## 📁 Repository contents
 
