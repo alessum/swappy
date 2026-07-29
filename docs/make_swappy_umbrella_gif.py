@@ -52,6 +52,13 @@ MAX_UMBRELLA_DROP_FRACTION = 1.0 / 3.0
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "assets" / "figure1.gif"
+# High-resolution, high-FPS companion GIF. Renders at the internal 2x raster
+# (1920x1080) with double the phase frame counts and half the per-frame
+# duration, so the total wall-clock length matches the standard GIF but the
+# motion plays at 50 fps instead of 25 fps.
+OUTPUT_HR = ROOT / "assets" / "figure1_hr.gif"
+HR_FRAME_MULTIPLIER = 2
+HR_FRAME_DURATION_MS = 20
 
 # LaTeX-style typography: prefer Latin Modern Roman (the modern OTF port of
 # Computer Modern that TeX uses by default), then CM Unicode, then any
@@ -2047,6 +2054,7 @@ def render_frame(
     *,
     previous_regime: dict[str, object] | None = None,
     next_regime: dict[str, object] | None = None,
+    downsample: bool = True,
 ) -> Image.Image:
     if previous_regime is None:
         previous_regime = regime
@@ -2106,55 +2114,98 @@ def render_frame(
     )
     draw_footer(draw, regime, image=image, progress=regime_progress)
 
-    return image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+    if downsample:
+        return image.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
+    return image
+
+
+def render_gif(
+    output_path: Path,
+    *,
+    frame_multiplier: int = 1,
+    duration_ms: int = FRAME_DURATION_MS,
+    downsample: bool = True,
+) -> None:
+    """Render every regime and save the resulting animation as a GIF.
+
+    ``frame_multiplier`` scales all four phase frame counts (opening,
+    motion, holding, closing) uniformly; halving ``duration_ms`` at the
+    same time preserves the total wall-clock length while doubling the
+    temporal resolution. ``downsample=False`` skips the final
+    ``WIDTH*SCALE`` -> ``WIDTH`` LANCZOS downscale and emits the raw 2x
+    raster, yielding a 1920x1080 GIF instead of the default 960x540.
+    """
+
+    global OPEN_FRAMES, MOTION_FRAMES, HOLD_FRAMES, CLOSE_FRAMES, FRAME_COUNT
+    saved = (OPEN_FRAMES, MOTION_FRAMES, HOLD_FRAMES, CLOSE_FRAMES, FRAME_COUNT)
+    try:
+        OPEN_FRAMES = saved[0] * frame_multiplier
+        MOTION_FRAMES = saved[1] * frame_multiplier
+        HOLD_FRAMES = saved[2] * frame_multiplier
+        CLOSE_FRAMES = saved[3] * frame_multiplier
+        FRAME_COUNT = OPEN_FRAMES + MOTION_FRAMES + HOLD_FRAMES + CLOSE_FRAMES
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        frames: list[Image.Image] = []
+        n_regimes = len(REGIMES)
+        for regime_index, regime in enumerate(REGIMES):
+            # The GIF loops, so the "previous" regime for the first entry
+            # is the last one -- this keeps the handle slide continuous
+            # across the loop boundary.
+            previous_regime = REGIMES[(regime_index - 1) % n_regimes]
+            next_regime = REGIMES[(regime_index + 1) % n_regimes]
+            for frame_index in range(FRAME_COUNT):
+                frames.append(
+                    render_frame(
+                        regime,
+                        frame_index,
+                        previous_regime=previous_regime,
+                        next_regime=next_regime,
+                        downsample=downsample,
+                    )
+                )
+
+        # Build the shared GIF palette from a frame in which the umbrella
+        # is fully deployed. ``frames[0]`` has ``canopy_scale = 0`` (the
+        # canopy is folded flat and the sector-drawing block is skipped
+        # entirely), so a palette built from it contains only background
+        # hues (sky, sand, ink, muted, coral/blue from the header) and
+        # every panel colour ends up mapped to whatever background hue is
+        # nearest -- PALM turns slate grey, CANOPY_TAN turns brown. Any
+        # frame from the middle of a regime's motion phase draws all
+        # eight sectors (both halves of the dome), so all four panel
+        # colours contribute enough pixels to be preserved by the
+        # 192-colour median-cut palette.
+        palette_source = frames[OPEN_FRAMES + MOTION_FRAMES // 2]
+        palette = palette_source.quantize(colors=192)
+        paletted = [
+            frame.quantize(palette=palette, dither=Image.Dither.NONE)
+            for frame in frames
+        ]
+        paletted[0].save(
+            output_path,
+            save_all=True,
+            append_images=paletted[1:],
+            duration=duration_ms,
+            loop=0,
+            disposal=2,
+            optimize=True,
+        )
+        print(f"Wrote {output_path} ({len(frames)} frames)")
+    finally:
+        OPEN_FRAMES, MOTION_FRAMES, HOLD_FRAMES, CLOSE_FRAMES, FRAME_COUNT = saved
 
 
 def main() -> None:
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    frames: list[Image.Image] = []
-    n_regimes = len(REGIMES)
-    for regime_index, regime in enumerate(REGIMES):
-        # The GIF loops, so the "previous" regime for the first entry is the
-        # last one -- this keeps the handle slide continuous across the loop
-        # boundary.
-        previous_regime = REGIMES[(regime_index - 1) % n_regimes]
-        next_regime = REGIMES[(regime_index + 1) % n_regimes]
-        for frame_index in range(FRAME_COUNT):
-            frames.append(
-                render_frame(
-                    regime,
-                    frame_index,
-                    previous_regime=previous_regime,
-                    next_regime=next_regime,
-                )
-            )
-
-    # Build the shared GIF palette from a frame in which the umbrella is
-    # fully deployed. ``frames[0]`` has ``canopy_scale = 0`` (the canopy is
-    # folded flat and the sector-drawing block is skipped entirely), so a
-    # palette built from it contains only background hues (sky, sand, ink,
-    # muted, coral/blue from the header) and every panel colour ends up
-    # mapped to whatever background hue is nearest -- PALM turns slate
-    # grey, CANOPY_TAN turns brown. Any frame from the middle of a regime's
-    # motion phase draws all eight sectors (both halves of the dome), so
-    # all four panel colours contribute enough pixels to be preserved by
-    # the 192-colour median-cut palette.
-    palette_source = frames[OPEN_FRAMES + MOTION_FRAMES // 2]
-    palette = palette_source.quantize(colors=192)
-    paletted = [
-        frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in frames
-    ]
-    paletted[0].save(
-        OUTPUT,
-        save_all=True,
-        append_images=paletted[1:],
-        duration=FRAME_DURATION_MS,
-        loop=0,
-        disposal=2,
-        optimize=True,
+    render_gif(OUTPUT)
+    render_gif(
+        OUTPUT_HR,
+        frame_multiplier=HR_FRAME_MULTIPLIER,
+        duration_ms=HR_FRAME_DURATION_MS,
+        downsample=False,
     )
-    print(f"Wrote {OUTPUT} ({len(frames)} frames)")
 
 
 if __name__ == "__main__":
     main()
+
