@@ -127,7 +127,10 @@ SAND_DARK = "#B88B45"
 # and are the endpoints of the R(t) time-colour ramp in figure04.
 CORAL = "#822522"
 GOLD = "#F2B84B"
-TEAL = "#2A9D8F"
+# FIREBRICK is the CSS "firebrick" red used for the NEAR SWAP pill in
+# docs/slider.html. It is intentionally redder (and "hotter") than CORAL
+# so the NEAR SWAP footer badge reads as the strongest regime.
+FIREBRICK = "#B22222"
 BLUE = "#485DB5"
 PURPLE = "#7656A7"
 # PALM: a muted leaf green completing the umbrella's four-colour set. Chosen
@@ -319,7 +322,7 @@ REGIMES = (
         "descent_boost": 1.0,
         "wobble_rot_amp": 0.0,
         "wobble_tilt_amp": 0.0,
-        "color": TEAL,
+        "color": FIREBRICK,
         # Paper marker: $\bigstar$ -- five-pointed filled star.
         "marker": "star",
     },
@@ -512,16 +515,46 @@ def draw_header(draw: ImageDraw.ImageDraw) -> None:
 
 
 def draw_sand(draw: ImageDraw.ImageDraw) -> None:
-    draw.rectangle(box(30, 334, 493, 458), fill=SAND)
+    # The beach spans the full canvas -- edge to edge horizontally and all
+    # the way down to the bottom margin -- so it reads as a continuous
+    # background. The CIRCULAR MOMENT panel and the footer/loading bar are
+    # drawn on top afterwards and cover their own footprints, so the sand
+    # is only visible around them.
+    #
+    # The wave-line phase stays anchored at x=30 so it remains consistent
+    # with the `beach_horizon` calc in `draw_umbrella`, which uses the same
+    # (x - 30) / 24 argument.
+    draw.rectangle(box(0, 334, WIDTH, HEIGHT), fill=SAND)
     wave = []
-    for x in range(30, 494, 6):
+    for x in range(0, WIDTH + 1, 6):
         y = 334 + 4 * math.sin((x - 30) / 24)
         wave.append(point(x, y))
     draw.line(wave, fill=SAND_DARK, width=sc(2))
 
-    for i in range(52):
-        x = 44 + ((i * 83) % 430)
+    # Original speckle pattern preserved verbatim inside the historical
+    # sand band (y = 352..443, x = 8..951). Grain positions are the same
+    # ones that existed before the sand rectangle was deepened, so this
+    # band doesn't visually shift or "duplicate" between old and new
+    # renders.
+    for i in range(115):
+        x = 8 + ((i * 83) % 944)
         y = 352 + ((i * 47) % 92)
+        radius = 1 + (i % 2)
+        draw.ellipse(
+            box(x - radius, y - radius, x + radius, y + radius),
+            fill=mix(SAND_DARK, PAPER, 0.35),
+        )
+
+    # Extra speckle populating ONLY the newly extended vertical band, from
+    # just below the original grain band (y >= 444) down to the canvas
+    # floor. Uses different prime offsets / multipliers than the loop
+    # above so the added grains interleave naturally with the historical
+    # pattern instead of landing on the same columns. Count is chosen to
+    # match the original density (~115 grains over 944 x 92 -> ~120
+    # grains over 944 x 96).
+    for i in range(120):
+        x = 12 + ((i * 89) % 936)
+        y = 444 + ((i * 53) % 96)
         radius = 1 + (i % 2)
         draw.ellipse(
             box(x - radius, y - radius, x + radius, y + radius),
@@ -1868,19 +1901,29 @@ def frame_state(
 
     The animation is split into four contiguous phases:
 
-    * ``opening`` (``OPEN_FRAMES``) -- the ribs pivot open at the regime's
-      initial pose (the shaft is already there, having been carried into
-      position by the previous regime's closing/transition phase).
+    * ``opening`` (``OPEN_FRAMES``) -- the umbrella begins the regime
+      standing perpendicular to the beach (tilt = 0, rotation = 0), the
+      canonical resting pose delivered by the previous regime's closing
+      phase. As the ribs pivot open the shaft eases from that vertical
+      stance into the regime's own initial pose (target_tilt,
+      initial_rotation).
     * ``motion`` (``MOTION_FRAMES``) -- the regime's ``moment_samples``
-      trajectory plays out with the usual eased ``moment_state`` mapping.
+      trajectory plays out with the usual eased ``moment_state`` mapping
+      for arg R and |R|, and the shaft's tilt is simultaneously faded
+      from ``target_tilt`` back to 0. The fade rides the same eased
+      ``motion_progress`` that governs arg R and |R|, so the settling
+      to a straight vertical shaft reads as an intrinsic continuation
+      of the time evolution rather than a separate transition.
     * ``holding`` (``HOLD_FRAMES``) -- the final motion frame is held so
-      the viewer can read the settled pose and completed circular moment.
-    * ``closing`` (``CLOSE_FRAMES``) -- combines the fold and the regime
-      transition: the ribs pivot back parallel to the shaft while the
-      shaft itself smoothly interpolates from this regime's ending pose
-      to the next regime's initial pose. By the end of this phase the
-      umbrella is in the exact configuration the next regime's opening
-      needs, so the two regimes stitch together seamlessly.
+      the viewer can read the settled outcome: a shaft standing straight
+      up (potentially deep in the sand) at the trajectory's final arg R
+      and |R|.
+    * ``closing`` (``CLOSE_FRAMES``) -- the ribs fold back parallel to
+      the (already-vertical) shaft, the auger extracts to the surface
+      (|R| -> 1), and the arg R readout unwinds toward 0. By the end of
+      this phase the umbrella is standing straight up with its canopy
+      folded, ready for the next regime's opening to ease it into a new
+      initial pose.
 
     The downward-push handle slides through the closing + opening pair as a
     single linear interpolation from the previous regime's push to the next
@@ -1903,18 +1946,21 @@ def frame_state(
     close_start = hold_start + HOLD_FRAMES
 
     if frame_index < motion_start:
-        # Opening phase: the shaft is already at the regime's initial pose
-        # (carried in by the previous regime's closing/transition), so only
-        # the ribs need to move. They pivot open from parallel to the pole
-        # (canopy_scale = 0) to fully deployed (canopy_scale = 1) while the
-        # handle finishes its slide from the previous-regime midpoint up to
-        # the current regime's target push.
+        # Opening phase: the umbrella starts perpendicular to the beach
+        # (tilt = 0, rotation = 0), the canonical resting pose delivered
+        # by the previous regime's closing phase. As the ribs pivot open
+        # from parallel to the pole (canopy_scale = 0) to fully deployed
+        # (canopy_scale = 1) the shaft eases in tandem from that vertical
+        # stance into the regime's own initial pose (target_tilt,
+        # initial_rotation), while the handle finishes its slide from
+        # the previous-regime midpoint up to the current regime's target
+        # push.
         denominator = max(1, OPEN_FRAMES - 1)
         raw_t = frame_index / denominator if OPEN_FRAMES > 1 else 1.0
         t = ease(raw_t)
         canopy_scale = t
-        tilt_deg = target_tilt
-        rotation = initial_rotation
+        tilt_deg = t * target_tilt
+        rotation = t * initial_rotation
         moment_radius = initial_radius
         motion_progress = 0.0
         raw_progress_for_wobble = 0.0
@@ -1922,45 +1968,58 @@ def frame_state(
         push = mid_push + t * (curr_push - mid_push)
         show_rotation = False
     elif frame_index < hold_start:
-        # Motion phase: play the regime trajectory through its eased mapping.
+        # Motion phase: play the regime trajectory through its eased
+        # mapping for arg R and |R|, and simultaneously fade the shaft's
+        # tilt from ``target_tilt`` back to 0. The fade rides the same
+        # eased ``motion_progress`` that governs the trajectory, so the
+        # umbrella smoothly settles into a straight vertical stance as
+        # part of the time evolution rather than through a separate
+        # post-motion transition. Using ``1 - motion_progress**2`` keeps
+        # the regime's distinctive tilt visible through most of the
+        # motion and only eases to vertical near the end.
         motion_frame = frame_index - motion_start
         denominator = max(1, MOTION_FRAMES - 1)
         raw_progress = motion_frame / denominator if MOTION_FRAMES > 1 else 1.0
         motion_progress = ease(raw_progress)
         rotation, moment_radius = moment_state(regime, motion_progress)
-        tilt_deg = target_tilt
+        tilt_fade = 1.0 - motion_progress * motion_progress
+        tilt_deg = target_tilt * tilt_fade
         canopy_scale = 1.0
         push = curr_push
         raw_progress_for_wobble = raw_progress
         show_rotation = has_precession
     elif frame_index < close_start:
         # Held phase: freeze at the final motion pose so the viewer has
-        # time to read the settled outcome.
+        # time to read the settled outcome. By the end of the motion the
+        # shaft has smoothly straightened to vertical, so we hold it
+        # there (tilt = 0) with the moment radius and arg R at their
+        # trajectory-final values -- potentially deep in the sand for
+        # regimes whose |R| contracted aggressively.
         rotation, moment_radius = moment_state(regime, 1.0)
-        tilt_deg = target_tilt
+        tilt_deg = 0.0
         canopy_scale = 1.0
         push = curr_push
         motion_progress = 1.0
         raw_progress_for_wobble = 1.0
         show_rotation = has_precession
     else:
-        # Closing + regime transition: the ribs pivot back parallel to the
-        # shaft, and the shaft simultaneously interpolates from this
-        # regime's final pose (tilt, rotation, |R|) to the next regime's
-        # initial pose. When the umbrella lands with `canopy_scale = 0` at
-        # the next regime's initial pose, the next regime's opening phase
-        # can begin its rib unfold with no visible discontinuity.
+        # Closing + return to the shared vertical resting pose. The shaft
+        # is already vertical from the end of the motion (and stayed
+        # vertical through the hold), so during the closing phase we
+        # keep it there (tilt = 0) while the ribs fold flat, the auger
+        # extracts to the surface (|R| -> 1), and the arg R readout
+        # unwinds toward 0. The next regime's opening phase then eases
+        # the shaft from this shared vertical pose into its own initial
+        # pose.
         close_frame = frame_index - close_start
         denominator = max(1, CLOSE_FRAMES - 1)
         raw_t = close_frame / denominator if CLOSE_FRAMES > 1 else 1.0
         t = ease(raw_t)
         final_rotation, final_radius = moment_state(regime, 1.0)
-        next_initial_rotation = float(next_regime["moment_samples"][0][2])
         next_initial_radius = float(next_regime["moment_samples"][0][1])
-        next_target_tilt = float(next_regime["tilt_deg"])
         canopy_scale = 1.0 - t
-        tilt_deg = target_tilt * (1.0 - t) + next_target_tilt * t
-        rotation = final_rotation * (1.0 - t) + next_initial_rotation * t
+        tilt_deg = 0.0
+        rotation = final_rotation * (1.0 - t)
         moment_radius = final_radius * (1.0 - t) + next_initial_radius * t
         motion_progress = 1.0
         raw_progress_for_wobble = 1.0
@@ -2003,7 +2062,12 @@ def render_frame(
     image = Image.new("RGB", (WIDTH * SCALE, HEIGHT * SCALE), PAPER)
     draw = ImageDraw.Draw(image)
 
-    draw.rectangle(box(0, 100, 515, 467), fill=SKY)
+    # Sky and sand span the entire canvas -- sky reaches the top margin
+    # and sand reaches the bottom margin -- so the beach scene reads as
+    # an edge-to-edge backdrop. The header, readout pill, CIRCULAR MOMENT
+    # panel, and footer/loading bar are all drawn on top afterwards, so
+    # the background is only visible where they don't cover it.
+    draw.rectangle(box(0, 0, WIDTH, 467), fill=SKY)
     draw_header(draw)
     draw_sand(draw)
 
