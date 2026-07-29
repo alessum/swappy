@@ -209,6 +209,27 @@
     font-family: inherit;
   }
 </style>
+<script>
+  // When this page is opened via htmlpreview.github.io the HTML is proxied
+  // through that origin, so relative fetches like `assets/figure1.gif` would
+  // resolve to htmlpreview.github.io/assets/figure1.gif (404). htmlpreview
+  // passes the underlying GitHub blob URL as its query string, so we can
+  // derive the raw.githubusercontent.com URL and install it as a <base>.
+  // This runs synchronously during head parsing, before any relative URL
+  // (including the module script's fetch of the GIF) is resolved.
+  (function () {
+    if (location.hostname !== 'htmlpreview.github.io') return;
+    var target = decodeURIComponent(location.search.replace(/^\?/, ''));
+    try {
+      var u = new URL(target);
+      if (u.hostname !== 'github.com') return;
+      var raw = 'https://raw.githubusercontent.com' + u.pathname.replace('/blob/', '/');
+      var base = document.createElement('base');
+      base.href = raw.slice(0, raw.lastIndexOf('/') + 1);
+      document.head.appendChild(base);
+    } catch (_) { /* leave relative URLs alone */ }
+  })();
+</script>
 </head>
 <body>
 <main>
